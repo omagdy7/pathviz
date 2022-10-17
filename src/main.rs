@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use egui::RichText;
 use macroquad::prelude::*;
 use egui_macroquad;
@@ -23,14 +21,12 @@ async fn main() {
         grid.push(col);
     }
 
-    let mut solver = Solver::new(grid);
+    let mut solver = Solver::new(grid, (0, 0), (50, 50));
 
 
-    let mut button_flags : HashMap<&str , bool> = HashMap::new();
-    button_flags.insert("target", false);
-    button_flags.insert("start", false);
     let mut selected_algo = Algorithm::Dfs;
     let mut selected_speed = Speed::Average;
+    let mut cur_button = MyButton::Start;
     let mut x_pos = 0.0;
     let mut y_pos = 0.0;
 
@@ -41,24 +37,32 @@ async fn main() {
         // Process keys, mouse etc.
         if is_mouse_button_down(MouseButton::Left) {
             let (x, y) = mouse_position();
-            if y >=TOP_PANEL_HEIGHT {
-                solver.grid[(x / RECT_WIDTH) as usize + 1][((y - TOP_PANEL_HEIGHT) / RECT_WIDTH) as usize].color = YELLOW;
-            }
             x_pos = x;
             y_pos = y;
+            match cur_button {
+                MyButton::Start => if y >= TOP_PANEL_HEIGHT { solver.mark((x, y), START_COLOR) },
+                MyButton::Target => if y >= TOP_PANEL_HEIGHT { solver.mark((x, y), TARGET_COLOR) },
+                MyButton::Wall => if y >= TOP_PANEL_HEIGHT { solver.mark((x, y), WALL_COLOR) },
+            }
         }
 
         egui_macroquad::ui(|egui_ctx| {
             egui::TopBottomPanel::top("Demo panel").resizable(true).min_height(TOP_PANEL_HEIGHT).show(egui_ctx, |ui| {
                 ui.horizontal(|ui| {
                     if ui.button(RichText::new("Start Node").size(BUTTON_WIDTH)).clicked() {
-                        button_flags.entry("start").and_modify(|flag| *flag = !*flag);
+                        cur_button = MyButton::Start;
                     }
                     if ui.button(RichText::new("Target Node").size(BUTTON_WIDTH)).clicked() {
-                        button_flags.entry("target").and_modify(|flag| *flag = !*flag);
+                        cur_button = MyButton::Target;
+                    }
+                    if ui.button(RichText::new("Draw Walls").size(BUTTON_WIDTH)).clicked() {
+                        cur_button = MyButton::Wall;
                     }
                     if ui.button(RichText::new("Play").size(BUTTON_WIDTH)).clicked() {
-
+                        match selected_algo {
+                            Algorithm::Dfs => solver.dfs(),
+                            Algorithm::Bfs => solver.bfs(),
+                        }
                     }
                     if ui.button(RichText::new("Pause").size(BUTTON_WIDTH)).clicked() {
                     }
@@ -82,8 +86,9 @@ async fn main() {
             egui::Window::new("Debug window").resizable(true).show(egui_ctx, |ui| {
                 ui.label(format!("x: {}", x_pos));
                 ui.label(format!("y: {}", y_pos));
-                ui.label(format!("start node: {}", button_flags.get("start").unwrap()));
-                ui.label(format!("target node: {}", button_flags.get("target").unwrap()));
+                ui.label(format!("currrent button: {:?}", cur_button));
+                ui.label(format!("selected algo: {:?}", selected_algo));
+                ui.label(format!("selected speed: {:?}", selected_speed));
             });
         });
 
@@ -93,7 +98,7 @@ async fn main() {
         for row in solver.grid.iter() {
             for rect in row.iter() {
                 draw_rectangle(rect.x, rect.y, rect.w, rect.h, rect.color);
-                draw_rectangle_lines(rect.x, rect.y, rect.w, rect.h, 1.0, BLUE);
+                draw_rectangle_lines(rect.x, rect.y, rect.w, rect.h, 2.0, GOLD);
             }
         }
         egui_macroquad::draw();

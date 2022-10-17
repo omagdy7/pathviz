@@ -1,10 +1,15 @@
 #![allow(unused_imports)]
 
 use egui::RichText;
-use macroquad::prelude::*;
+use macroquad::{prelude::*, color};
 use egui_macroquad;
 
 
+pub const START_COLOR: Color = color::colors::MAGENTA;
+pub const TARGET_COLOR: Color = color::colors::RED;
+pub const WALL_COLOR: Color = color::colors::YELLOW;
+pub const VIS_COLOR: Color = color::colors::PURPLE;
+pub const NONVIS_COLOR: Color = color::colors::WHITE;
 pub const BUTTON_WIDTH: f32 = 30.0;
 pub const TOP_PANEL_HEIGHT : f32 = 60.0;
 pub const RECT_WIDTH: f32 = 20.0;
@@ -24,15 +29,26 @@ pub enum Speed {
     Fast,
 }
 
+#[derive(PartialEq, Debug)]
+pub enum MyButton {
+    Start,
+    Target,
+    Wall,
+}
+
 
 pub struct Solver {
     pub grid: Vec<Vec<Rect>>,
+    pub start: Option<(usize, usize)>,
+    pub target: Option<(usize, usize)>,
 }
 
 impl Solver {
-    pub fn new(grid : Vec<Vec<Rect>>) -> Self {
+    pub fn new(grid : Vec<Vec<Rect>>, start: Option<(usize, usize)>, target: Option<(usize, usize)>) -> Self {
         Self {
-            grid
+            grid,
+            start,
+            target,
         }
     }
 
@@ -42,6 +58,10 @@ impl Solver {
 
     pub fn bfs(&mut self) {
         todo!();
+    }
+
+    pub fn mark(&mut self, (x, y) : (f32, f32), color: Color) {
+        self.grid[(x / RECT_WIDTH) as usize + 1][((y - TOP_PANEL_HEIGHT) / RECT_WIDTH) as usize].color = color;
     }
 }
 
