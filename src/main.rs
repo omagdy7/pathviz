@@ -37,6 +37,7 @@ async fn main() {
         st,
     );
 
+    let mut f = Flag::First;
     let mut game_state = State::Paused;
     let mut selected_algo = Algorithm::Dfs;
     let mut selected_speed = Speed::Average;
@@ -66,6 +67,11 @@ async fn main() {
                 MyButton::Wall => {
                     if y >= TOP_PANEL_HEIGHT {
                         solver.mark((x, y), WALL_COLOR)
+                    }
+                }
+                MyButton::Reset => {
+                    if y >= TOP_PANEL_HEIGHT {
+                        solver.reset();
                     }
                 }
             }
@@ -107,6 +113,14 @@ async fn main() {
                         {
                             game_state = State::Paused;
                         }
+
+                        if ui
+                            .button(RichText::new("Reset").size(BUTTON_WIDTH))
+                            .clicked()
+                        {
+                            cur_button = MyButton::Reset;
+                            solver.reset();
+                        }
                         egui::ComboBox::from_label(RichText::new("Speed").size(20.0))
                             .selected_text(format!("{:?}", selected_speed))
                             .width(20.0)
@@ -138,6 +152,7 @@ async fn main() {
             egui::Window::new("Debug window")
                 .resizable(true)
                 .show(egui_ctx, |ui| {
+                    ui.label(format!("fps: {}", macroquad::time::get_fps()));
                     ui.label(format!("x: {}", x_pos));
                     ui.label(format!("y: {}", y_pos));
                     ui.label(format!("start: {:?}", solver.start.unwrap()));
@@ -151,12 +166,11 @@ async fn main() {
 
         // Draw things before egui
 
-        solver.draw(&selected_algo, &mut game_state);
 
         egui_macroquad::draw();
+        solver.draw(&selected_algo, &mut game_state, &mut f);
 
         // Draw things after egui
-
         next_frame().await;
     }
 }
