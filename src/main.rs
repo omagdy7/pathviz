@@ -30,18 +30,17 @@ async fn main() {
     let mut st: VecDeque<(usize, usize)> = VecDeque::new();
     st.push_back((0, 0));
 
-    let mut solver = Solver::new(
+    let mut explorer = Explorer::new(
         grid,
         Some((0, 0)),
         Some(((r - 1.0) as usize, (c - 1.0) as usize)),
         st,
     );
 
-    let mut f = Flag::First;
     let mut game_state = State::Paused;
     let mut selected_algo = Algorithm::Dfs;
     let mut selected_speed = Speed::Average;
-    let mut cur_button = MyButton::Start;
+    let mut cur_button = MyButton::Wall;
     let mut x_pos = 0.0;
     let mut y_pos = 0.0;
 
@@ -56,25 +55,30 @@ async fn main() {
             match cur_button {
                 MyButton::Start => {
                     if y >= TOP_PANEL_HEIGHT {
-                        solver.mark((x, y), START_COLOR)
+                        explorer.mark((x, y), START_COLOR)
                     }
                 }
                 MyButton::Target => {
                     if y >= TOP_PANEL_HEIGHT {
-                        solver.mark((x, y), TARGET_COLOR)
+                        explorer.mark((x, y), TARGET_COLOR)
                     }
                 }
                 MyButton::Wall => {
                     if y >= TOP_PANEL_HEIGHT {
-                        solver.mark((x, y), WALL_COLOR)
+                        explorer.mark((x, y), WALL_COLOR)
                     }
                 }
                 MyButton::Reset => {
                     if y >= TOP_PANEL_HEIGHT {
-                        solver.reset();
+                        explorer.reset();
                     }
                 }
             }
+        }
+
+        if is_mouse_button_down(MouseButton::Right) {
+            let (x, y) = mouse_position();
+            explorer.mark((x, y), NONVIS_COLOR)
         }
 
         egui_macroquad::ui(|egui_ctx| {
@@ -82,7 +86,7 @@ async fn main() {
                 .resizable(true)
                 .min_height(TOP_PANEL_HEIGHT)
                 .show(egui_ctx, |ui| {
-                    ui.horizontal(|ui| {
+                    ui.horizontal_centered(|ui| {
                         if ui
                             .button(RichText::new("Start Node").size(BUTTON_WIDTH))
                             .clicked()
@@ -118,31 +122,33 @@ async fn main() {
                             .button(RichText::new("Reset").size(BUTTON_WIDTH))
                             .clicked()
                         {
+                            explorer.reset();
+                            game_state = State::Paused;
                             cur_button = MyButton::Reset;
-                            solver.reset();
                         }
                         egui::ComboBox::from_label(RichText::new("Speed").size(20.0))
                             .selected_text(format!("{:?}", selected_speed))
-                            .width(20.0)
+                            .width(100.0)
                             .show_ui(ui, |ui| {
                                 ui.selectable_value(
                                     &mut selected_speed,
                                     Speed::Slow,
-                                    RichText::new("Slow").size(20.0),
+                                    RichText::new("Slow").size(25.0),
                                 );
                                 ui.selectable_value(
                                     &mut selected_speed,
                                     Speed::Average,
-                                    RichText::new("Average").size(20.0),
+                                    RichText::new("Average").size(25.0),
                                 );
                                 ui.selectable_value(
                                     &mut selected_speed,
                                     Speed::Fast,
-                                    RichText::new("Fast").size(20.0),
+                                    RichText::new("Fast").size(25.0),
                                 );
                             });
                         egui::ComboBox::from_label("Algorithms")
                             .selected_text(format!("{:?}", selected_algo))
+                            .width(30.0)
                             .show_ui(ui, |ui| {
                                 ui.selectable_value(&mut selected_algo, Algorithm::Dfs, "DFS");
                                 ui.selectable_value(&mut selected_algo, Algorithm::Bfs, "BFS");
@@ -155,8 +161,8 @@ async fn main() {
                     ui.label(format!("fps: {}", macroquad::time::get_fps()));
                     ui.label(format!("x: {}", x_pos));
                     ui.label(format!("y: {}", y_pos));
-                    ui.label(format!("start: {:?}", solver.start.unwrap()));
-                    ui.label(format!("target: {:?}", solver.target.unwrap()));
+                    ui.label(format!("start: {:?}", explorer.start.unwrap()));
+                    ui.label(format!("target: {:?}", explorer.target.unwrap()));
                     // ui.label(format!("last: {:?}", solver.last.back()));
                     ui.label(format!("currrent button: {:?}", cur_button));
                     ui.label(format!("selected algo: {:?}", selected_algo));
@@ -166,9 +172,9 @@ async fn main() {
 
         // Draw things before egui
 
+        explorer.draw(&selected_algo, &mut game_state);
 
         egui_macroquad::draw();
-        solver.draw(&selected_algo, &mut game_state, &mut f);
 
         // Draw things after egui
         next_frame().await;
