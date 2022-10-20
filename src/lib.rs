@@ -4,8 +4,13 @@ use std::{collections::{VecDeque, HashMap}, thread, time::Duration};
 use egui::RichText;
 use egui_macroquad;
 use macroquad::{color::colors, prelude::*};
+
+
 mod pathfinder;
+mod pathfinderui;
+pub use pathfinderui::PathUi;
 pub use pathfinder::*;
+
 
 pub const START_COLOR      : Color = DARKBLUE;
 pub const TARGET_COLOR     : Color = RED;
@@ -24,6 +29,10 @@ pub type Grid = Vec<Vec<Rect>>;
 
 pub trait PathFinder {
     fn explore(exp: &mut Explorer, state: &mut crate::State);
+}
+
+pub trait Render {
+    fn render(explorer: &mut Explorer, cur_button: &mut MyButton, game_state: &mut State, selected_algo: &mut Algorithm, selected_speed: &mut Speed);
 }
 
 pub struct Rect {
