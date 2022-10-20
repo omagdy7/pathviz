@@ -1,4 +1,4 @@
-use std::collections::VecDeque;
+use std::collections::{ VecDeque, HashMap };
 
 use egui::RichText;
 use egui_macroquad;
@@ -12,7 +12,7 @@ use pathviz::*;
 async fn main() {
     let r = SCREEN_WIDTH / RECT_WIDTH;
     let c = SCREEN_HEIGHT / RECT_WIDTH;
-    let mut grid: Vec<Vec<pathviz::Rect>> = Vec::new();
+    let mut grid: Grid = Vec::new();
     for i in 0..r as usize {
         let mut col: Vec<pathviz::Rect> = vec![];
         for j in 0..c as usize {
@@ -27,13 +27,15 @@ async fn main() {
         }
         grid.push(col);
     }
-    let mut st: VecDeque<(usize, usize)> = VecDeque::new();
+    let mut st: VecDeque<P2> = VecDeque::new();
+    let trail = HashMap::new();
     st.push_back((0, 0));
 
     let mut explorer = Explorer::new(
         grid,
         Some((0, 0)),
         Some(((r - 1.0) as usize, (c - 1.0) as usize)),
+        trail,
         st,
     );
 
@@ -156,15 +158,15 @@ async fn main() {
                     })
                 });
             egui::Window::new("Debug window")
-                .resizable(true)
+                .resizable(true).scroll2([true, false])
                 .show(egui_ctx, |ui| {
                     ui.label(format!("fps: {}", macroquad::time::get_fps()));
                     ui.label(format!("x: {}", x_pos));
                     ui.label(format!("y: {}", y_pos));
                     ui.label(format!("start: {:?}", explorer.start.unwrap()));
                     ui.label(format!("target: {:?}", explorer.target.unwrap()));
-                    // ui.label(format!("last: {:?}", solver.last.back()));
                     ui.label(format!("currrent button: {:?}", cur_button));
+                    ui.label(format!("state: {:?}", game_state));
                     ui.label(format!("selected algo: {:?}", selected_algo));
                     ui.label(format!("selected speed: {:?}", selected_speed));
                 });

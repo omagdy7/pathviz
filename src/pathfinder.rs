@@ -26,10 +26,11 @@ impl PathFinder for Bfs {
             }
 
             if is_valid_idx(nx, ny, m, n)
-                && exp.grid[nx as usize][ny as usize].color == NONVIS_COLOR
+                && (exp.grid[nx as usize][ny as usize].color == NONVIS_COLOR || exp.grid[nx as usize][ny as usize].color == TARGET_COLOR)
             {
                 exp.last.push_back((nx as usize, ny as usize));
                 exp.grid[nx as usize][ny as usize].color = VIS_COLOR;
+                exp.path.insert((nx as usize, ny as usize), (r, c));
             }
         }
     }
@@ -47,20 +48,22 @@ impl PathFinder for Dfs {
         let dx: [i32; 4] = [0, 1, 0, -1];
         let dy: [i32; 4] = [-1, 0, 1, 0];
 
+
+
         for i in 0..4 {
             let nx: i32 = r as i32 + dx[i];
             let ny: i32 = c as i32 + dy[i];
-            if is_valid_idx(nx, ny, m, n)
-                && exp.grid[nx as usize][ny as usize].color == TARGET_COLOR
-            {
-                exp.last.clear();
-                *state = State::TargetFound;
-            }
 
             if is_valid_idx(nx, ny, m, n)
-                && exp.grid[nx as usize][ny as usize].color == NONVIS_COLOR
+                && (exp.grid[nx as usize][ny as usize].color == NONVIS_COLOR || exp.grid[nx as usize][ny as usize].color == TARGET_COLOR)
             {
-                exp.last.push_back((nx as usize, ny as usize));
+                if exp.grid[nx as usize][ny as usize].color == TARGET_COLOR /*&& (dx[i] == -1 || dx[i] == 1)*/
+                {
+                    exp.last.clear();
+                    *state = State::TargetFound;
+                } else {
+                    exp.last.push_back((nx as usize, ny as usize));
+                }
             }
         }
     }

@@ -1,22 +1,26 @@
 #![allow(unused_imports)]
 
-use std::{collections::VecDeque, thread, time::Duration};
-use egui::{color::HsvaGamma, RichText};
+use std::{collections::{VecDeque, HashMap}, thread, time::Duration};
+use egui::RichText;
 use egui_macroquad;
-use macroquad::{color, prelude::*};
+use macroquad::{color::colors, prelude::*};
 mod pathfinder;
 pub use pathfinder::*;
 
-pub const START_COLOR: Color = color::colors::DARKBLUE;
-pub const TARGET_COLOR: Color = color::colors::RED;
-pub const WALL_COLOR: Color = color::colors::YELLOW;
-pub const VIS_COLOR: Color = color::colors::PURPLE;
-pub const NONVIS_COLOR: Color = color::colors::DARKGRAY;
-pub const BUTTON_WIDTH: f32 = 40.0;
-pub const TOP_PANEL_HEIGHT: f32 = 60.0;
-pub const RECT_WIDTH: f32 = 30.0;
-pub const SCREEN_WIDTH: f32 = 1920.0;
-pub const SCREEN_HEIGHT: f32 = 1080.0 - TOP_PANEL_HEIGHT;
+pub const START_COLOR      : Color = DARKBLUE;
+pub const TARGET_COLOR     : Color = RED;
+pub const WALL_COLOR       : Color = YELLOW;
+pub const VIS_COLOR        : Color = PURPLE;
+pub const NONVIS_COLOR     : Color = DARKGRAY;
+pub const TRAIL_COLOR      : Color = ORANGE;
+pub const BUTTON_WIDTH     : f32   = 40.0;
+pub const TOP_PANEL_HEIGHT : f32   = 60.0;
+pub const RECT_WIDTH       : f32   = 30.0;
+pub const SCREEN_WIDTH     : f32   = 1920.0;
+pub const SCREEN_HEIGHT    : f32   = 1080.0 - TOP_PANEL_HEIGHT;
+
+pub type P2 = (usize, usize);
+pub type Grid = Vec<Vec<Rect>>;
 
 pub trait PathFinder {
     fn explore(exp: &mut Explorer, state: &mut crate::State);
@@ -31,10 +35,11 @@ pub struct Rect {
 }
 
 pub struct Explorer {
-    pub grid: Vec<Vec<Rect>>,
-    pub start: Option<(usize, usize)>,
-    pub target: Option<(usize, usize)>,
-    pub last: VecDeque<(usize, usize)>,
+    pub grid: Grid,
+    pub start: Option<P2>,
+    pub target: Option<P2>,
+    pub path: HashMap<P2, P2>,
+    pub last: VecDeque<P2>,
 }
 
 impl Rect {
@@ -45,15 +50,17 @@ impl Rect {
 
 impl Explorer {
     pub fn new(
-        grid: Vec<Vec<Rect>>,
-        start: Option<(usize, usize)>,
-        target: Option<(usize, usize)>,
-        last: VecDeque<(usize, usize)>,
+        grid: Grid,
+        start: Option<P2>,
+        target: Option<P2>,
+        path: HashMap<P2, P2>,
+        last: VecDeque<P2>,
     ) -> Self {
         Self {
             grid,
             start,
             target,
+            path,
             last,
         }
     }
@@ -61,7 +68,7 @@ impl Explorer {
     pub fn reset(&mut self) {
         for row in self.grid.iter_mut() {
             for rect in row.iter_mut() {
-                if rect.color == WALL_COLOR || rect.color == VIS_COLOR {
+                if rect.color != START_COLOR || rect.color != TARGET_COLOR {
                     rect.color = NONVIS_COLOR;
                 }
             }
@@ -105,19 +112,34 @@ impl Explorer {
     }
 
     pub fn draw(&mut self, selected_algo: &Algorithm, game_state: &mut State) {
-        if let State::Playing = game_state {
-            if self.last.back().is_some() {
-                match selected_algo {
-                    Algorithm::Dfs => Dfs::explore(self, game_state),
-                    Algorithm::Bfs => Bfs::explore(self, game_state),
+        match game_state {
+            State::Playing => {
+                if self.last.back().is_some() {
+                    match selected_algo {
+                        Algorithm::Dfs => Dfs::explore(self, game_state),
+                        Algorithm::Bfs => Bfs::explore(self, game_state)
+                    }
                 }
             }
+            State::TargetFound => {
+                self.mark_trail();
+                self.grid[self.target.unwrap().0][self.target.unwrap().1].color = TARGET_COLOR;
+            }
+            _ => {}
         }
         for row in self.grid.iter() {
             for rect in row.iter() {
                 draw_rectangle(rect.x, rect.y, rect.w, rect.h, rect.color);
                 draw_rectangle_lines(rect.x, rect.y, rect.w, rect.h, 2.0, BLACK);
             }
+        }
+    }
+
+    pub fn mark_trail(&mut self) {
+        let mut cur = self.path.get(&self.target.unwrap());
+        while cur.unwrap() != &self.start.unwrap() {
+            self.grid[cur.unwrap().0][cur.unwrap().1].color = ORANGE;
+            cur = self.path.get(cur.unwrap());
         }
     }
 }
