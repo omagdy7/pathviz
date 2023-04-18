@@ -1,13 +1,17 @@
-use egui_macroquad;
-use crate::{Speed, Algorithm, State};
 use crate::*;
-
-
+use crate::{Algorithm, PathFindingAlgorithm, SortingAlgorithm, Speed, State};
+use egui_macroquad;
 
 pub struct PathUi {}
 
 impl Render for PathUi {
-    fn render(explorer: &mut Explorer, cur_button: &mut MyButton, game_state: &mut State, selected_algo: &mut Algorithm, selected_speed: &mut Speed) {
+    fn render(
+        explorer: &mut Explorer,
+        cur_button: &mut MyButton,
+        game_state: &mut State,
+        selected_algo: &mut Algorithm,
+        selected_speed: &mut Speed,
+    ) {
         egui_macroquad::ui(|egui_ctx| {
             egui::TopBottomPanel::top("Demo panel")
                 .resizable(true)
@@ -76,14 +80,26 @@ impl Render for PathUi {
                         egui::ComboBox::from_label("Algorithms")
                             .selected_text(format!("{:?}", selected_algo))
                             .width(30.0)
-                            .show_ui(ui, |ui| {
-                                ui.selectable_value(selected_algo, Algorithm::Dfs, "DFS");
-                                ui.selectable_value(selected_algo, Algorithm::Bfs, "BFS");
+                            .show_ui(ui, |ui| match selected_algo {
+                                Algorithm::PathFinder(path_finder) => {
+                                    ui.selectable_value(
+                                        path_finder,
+                                        PathFindingAlgorithm::Dfs,
+                                        "DFS",
+                                    );
+                                    ui.selectable_value(
+                                        path_finder,
+                                        PathFindingAlgorithm::Bfs,
+                                        "BFS",
+                                    );
+                                }
+                                _ => {}
                             });
                     })
                 });
             egui::Window::new("Debug window")
-                .resizable(true).scroll2([true, false])
+                .resizable(true)
+                .scroll2([true, false])
                 .show(egui_ctx, |ui| {
                     ui.label(format!("fps: {}", macroquad::time::get_fps()));
                     ui.label(format!("start: {:?}", explorer.start.unwrap()));

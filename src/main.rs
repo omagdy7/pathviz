@@ -1,15 +1,15 @@
-use std::collections::{ VecDeque, HashMap };
 use egui::RichText;
 use egui_macroquad;
 use macroquad::prelude::*;
 use pathviz::*;
+use std::collections::{HashMap, VecDeque};
 
 mod pathfinder;
 mod pathfinderui;
-pub use pathfinderui::PathUi;
+mod sorterui;
 pub use pathfinder::*;
-
-// use egui::Window;
+pub use pathfinderui::PathUi;
+pub use sorterui::SorterUi;
 
 #[macroquad::main("egui with macroquad")]
 async fn main() {
@@ -17,13 +17,14 @@ async fn main() {
     let c = SCREEN_HEIGHT / RECT_WIDTH;
     let mut grid: Grid = Vec::new();
     for i in 0..r as usize {
-        let mut col: Vec<pathviz::Rect> = vec![];
+        let mut col: Vec<pathviz::Node> = vec![];
         for j in 0..c as usize {
-            let rect = pathviz::Rect::new(
+            let rect = pathviz::Node::new(
                 i as f32 * RECT_WIDTH,
                 (j as f32 * RECT_WIDTH) + TOP_PANEL_HEIGHT,
                 RECT_WIDTH,
                 RECT_WIDTH,
+                0,
                 NONVIS_COLOR,
             );
             col.push(rect);
@@ -43,7 +44,7 @@ async fn main() {
     );
 
     let mut game_state = State::Paused;
-    let mut selected_algo = Algorithm::Dfs;
+    let mut selected_algo = Algorithm::PathFinder(PathFindingAlgorithm::Dfs);
     let mut selected_speed = Speed::Average;
     let mut cur_button = MyButton::Wall;
 
@@ -83,7 +84,21 @@ async fn main() {
         }
 
         // Draw things before egui
-        PathUi::render(&mut explorer, &mut cur_button, &mut game_state, &mut selected_algo, &mut selected_speed);
+        PathUi::render(
+            &mut explorer,
+            &mut cur_button,
+            &mut game_state,
+            &mut selected_algo,
+            &mut selected_speed,
+        );
+
+        // SorterUi::render(
+        //     &mut explorer,
+        //     &mut cur_button,
+        //     &mut game_state,
+        //     &mut selected_algo,
+        //     &mut selected_speed,
+        // );
 
         explorer.draw(&selected_algo, &mut game_state);
 

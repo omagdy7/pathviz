@@ -1,45 +1,54 @@
 #![allow(unused_imports)]
 
-use std::{collections::{VecDeque, HashMap}, thread, time::Duration};
 use egui::RichText;
 use egui_macroquad;
 use macroquad::{color::colors, prelude::*};
-
+use std::{
+    collections::{HashMap, VecDeque},
+    thread,
+    time::Duration,
+};
 
 mod pathfinder;
 mod pathfinderui;
-pub use pathfinderui::PathUi;
 pub use pathfinder::*;
+pub use pathfinderui::PathUi;
 
-
-pub const START_COLOR      : Color = DARKBLUE;
-pub const TARGET_COLOR     : Color = RED;
-pub const WALL_COLOR       : Color = YELLOW;
-pub const VIS_COLOR        : Color = PURPLE;
-pub const NONVIS_COLOR     : Color = DARKGRAY;
-pub const TRAIL_COLOR      : Color = ORANGE;
-pub const BUTTON_WIDTH     : f32   = 40.0;
-pub const TOP_PANEL_HEIGHT : f32   = 60.0;
-pub const RECT_WIDTH       : f32   = 30.0;
-pub const SCREEN_WIDTH     : f32   = 1920.0;
-pub const SCREEN_HEIGHT    : f32   = 1080.0 - TOP_PANEL_HEIGHT;
+pub const START_COLOR: Color = DARKBLUE;
+pub const TARGET_COLOR: Color = RED;
+pub const WALL_COLOR: Color = YELLOW;
+pub const VIS_COLOR: Color = PURPLE;
+pub const NONVIS_COLOR: Color = DARKGRAY;
+pub const TRAIL_COLOR: Color = ORANGE;
+pub const BUTTON_WIDTH: f32 = 40.0;
+pub const TOP_PANEL_HEIGHT: f32 = 60.0;
+pub const RECT_WIDTH: f32 = 30.0;
+pub const SCREEN_WIDTH: f32 = 1920.0;
+pub const SCREEN_HEIGHT: f32 = 1080.0 - TOP_PANEL_HEIGHT;
 
 pub type P2 = (usize, usize);
-pub type Grid = Vec<Vec<Rect>>;
+pub type Grid = Vec<Vec<Node>>;
 
 pub trait PathFinder {
     fn explore(exp: &mut Explorer, state: &mut crate::State);
 }
 
 pub trait Render {
-    fn render(explorer: &mut Explorer, cur_button: &mut MyButton, game_state: &mut State, selected_algo: &mut Algorithm, selected_speed: &mut Speed);
+    fn render(
+        explorer: &mut Explorer,
+        cur_button: &mut MyButton,
+        game_state: &mut State,
+        selected_algo: &mut Algorithm,
+        selected_speed: &mut Speed,
+    );
 }
 
-pub struct Rect {
+pub struct Node {
     pub x: f32,
     pub y: f32,
     pub w: f32,
     pub h: f32,
+    pub weight: u32,
     pub color: Color,
 }
 
@@ -51,9 +60,16 @@ pub struct Explorer {
     pub last: VecDeque<P2>,
 }
 
-impl Rect {
-    pub fn new(x: f32, y: f32, w: f32, h: f32, color: Color) -> Self {
-        Rect { x, y, w, h, color }
+impl Node {
+    pub fn new(x: f32, y: f32, w: f32, h: f32, weight: u32, color: Color) -> Self {
+        Node {
+            x,
+            y,
+            w,
+            h,
+            weight,
+            color,
+        }
     }
 }
 
@@ -74,7 +90,9 @@ impl Explorer {
         }
     }
 
+    /* function to reset the playground */
     pub fn reset(&mut self) {
+        /* reset all colors except the start and target nodes */
         for row in self.grid.iter_mut() {
             for rect in row.iter_mut() {
                 if rect.color != START_COLOR || rect.color != TARGET_COLOR {
@@ -82,14 +100,15 @@ impl Explorer {
                 }
             }
         }
-        self.last.clear();
+        self.last.clear(); /* empty stack */
         self.last.push_back(self.start.unwrap());
-        let start = self.start.unwrap();
-        let target = self.target.unwrap();
+        let start = self.start.expect("Start was none");
+        let target = self.target.expect("target was none");
         self.grid[start.0][start.1].color = START_COLOR;
         self.grid[target.0][target.1].color = TARGET_COLOR;
     }
 
+    /* reset start node */
     fn reset_start(&mut self) {
         if let Some(st) = self.start {
             self.grid[st.0][st.1].color = NONVIS_COLOR;
@@ -97,6 +116,7 @@ impl Explorer {
         }
     }
 
+    /* reset target node */
     fn reset_target(&mut self) {
         if let Some(end) = self.target {
             self.grid[end.0][end.1].color = NONVIS_COLOR;
@@ -116,8 +136,11 @@ impl Explorer {
             self.reset_target();
             self.target = Some((r, c));
         }
-
-        self.grid[r][c].color = color;
+        if color == WALL_COLOR {
+            self.grid[r][c].color.r -= 5.0;
+        } else {
+            self.grid[r][c].color = color;
+        }
     }
 
     pub fn draw(&mut self, selected_algo: &Algorithm, game_state: &mut State) {
@@ -125,8 +148,11 @@ impl Explorer {
             State::Playing => {
                 if self.last.back().is_some() {
                     match selected_algo {
-                        Algorithm::Dfs => Dfs::explore(self, game_state),
-                        Algorithm::Bfs => Bfs::explore(self, game_state)
+                        Algorithm::PathFinder(algo) => match algo {
+                            PathFindingAlgorithm::Dfs => Dfs::explore(self, game_state),
+                            PathFindingAlgorithm::Bfs => Bfs::explore(self, game_state),
+                        },
+                        _ => {}
                     }
                 }
             }
@@ -146,17 +172,33 @@ impl Explorer {
 
     pub fn mark_trail(&mut self) {
         let mut cur = self.path.get(&self.target.unwrap());
-        while cur.unwrap() != &self.start.unwrap() {
-            self.grid[cur.unwrap().0][cur.unwrap().1].color = ORANGE;
-            cur = self.path.get(cur.unwrap());
+        while cur.expect("cur shouldn't be none") != &self.start.expect("Start shouldn't be none") {
+            self.grid[cur.expect("cur shouldn't be none").0]
+                [cur.expect("cur shouldn't be none").1]
+                .color = ORANGE;
+            cur = self.path.get(cur.expect("cur shouldn't be none"));
         }
     }
 }
 
 #[derive(PartialEq, Debug)]
-pub enum Algorithm {
+pub enum SortingAlgorithm {
+    Insertion,
+    Bubble,
+    MergeSort,
+    QuickSort,
+}
+
+#[derive(PartialEq, Debug)]
+pub enum PathFindingAlgorithm {
     Dfs,
     Bfs,
+}
+
+#[derive(PartialEq, Debug)]
+pub enum Algorithm {
+    PathFinder(PathFindingAlgorithm),
+    Sorter(SortingAlgorithm),
 }
 
 #[derive(PartialEq, Debug)]
@@ -180,7 +222,6 @@ pub enum State {
     Paused,
     TargetFound,
 }
-
 
 pub fn is_valid_idx(i: i32, j: i32, r: i32, c: i32) -> bool {
     i >= 0 && j >= 0 && i < r && j < c
